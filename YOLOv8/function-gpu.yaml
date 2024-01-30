@@ -1,0 +1,59 @@
+metadata:
+  name: tf-madian-yolov8
+  namespace: cvat
+  annotations:
+    name: YOLO v8
+    type: detector
+    framework: tensorflow
+    spec: |
+      [
+        { "id": 0, "name": "person", "type": "rectangle" },
+        { "id": 1, "name": "bicycle", "type": "rectangle" },
+        { "id": 2, "name": "car", "type": "rectangle" },
+        { "id": 3, "name": "motorbike", "type": "rectangle" },
+        { "id": 4, "name": "aeroplane", "type": "rectangle" },
+        { "id": 5, "name": "bus", "type": "rectangle" }
+      ]
+
+spec:
+  description: YOLO v8 
+  runtime: 'python:3.8'
+  handler: main:handler
+  eventTimeout: 30s
+  build:
+    image: cvat.tensorflow.madian.yolov8:latest-gpu
+    baseImage: tensorflow/tensorflow:2.10.1-gpu
+
+    directives:
+      preCopy:
+        - kind: USER
+          value: root
+        - kind: RUN
+          value: apt update && apt install --no-install-recommends -y wget python3-pip
+        - kind: WORKDIR
+          value: /opt/nuclio
+        - kind: RUN
+          value: python -m pip install opencv-python-headless pillow pyyaml
+        - kind: WORKDIR
+          value: /opt/nuclio
+        - kind: RUN
+          value: wget https://github.com/ergouu/data2share/releases/download/v1.0/yolov8.tar.gz && tar -zxvf yolov8.tar.gz && rm yolov8.tar.gz
+
+  triggers:
+    myHttpTrigger:
+      maxWorkers: 1
+      kind: 'http'
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        maxRequestBodySize: 33554432 # 32MB
+
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume
